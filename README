@@ -1,0 +1,9 @@
+ncurses IMAP mail notifier written in perl
+
+* Connects to local imapd over pipe
+* prints summary of new/old/read messages in all folders
+* notifies about incoming mail in subscribed folders
+
+uses Net::IMAP::Simple
+
+Written 2015 by Moritz Wilhelmy
