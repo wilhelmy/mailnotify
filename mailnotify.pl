@@ -8,7 +8,7 @@ use Net::IMAP::Simple;
 
 sub imap_connect {
 	# change this as needed:
-	my $cmd = "env HOME=/srv/mail/mw /usr/local/libexec/dovecot/imap"; 
+	my $cmd = "env HOME=/srv/mail/mw /usr/local/libexec/dovecot/imap";
 
 	return Net::IMAP::Simple->new('cmd:'.$cmd)
 		or die "imap connect failed: $Net::IMAP::Simple::errstr";
@@ -25,26 +25,13 @@ my %prevstatus;
 # useful in case I ever switch to IMAP IDLE
 UI::every imap_noop => 10*60, sub { $imap->noop };
 
-my $mbxlen = 11; # show this many characters of the mailbox name
-
-# Shorten a mailbox name
-sub shorten {
-	my $name = shift;
-	$name =~ s|([[:alnum:]])[^/]+/|$1/|g;
-	return substr($name, 0, $mbxlen);
-}
-
 # periodic mailcheck every minute for now, because I'm too lazy to deal with
 # IMAP IDLE
 sub overview {
 	my @status = ();
 
-	foreach (@subscribed) {
-		my @stat = $imap->status($_);
-		my $str = sprintf("%${mbxlen}s %4d/%4d/%5d", shorten($_), @stat);
-		$str = "<reverse>".$str."</reverse>" if $stat[1]; # got new mails?
-		push @status, $str;
-	}
+	push @status, $_, $imap->status($_) foreach (@subscribed);
+
 	UI::mbx @status;
 };
 

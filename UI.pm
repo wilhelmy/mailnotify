@@ -14,9 +14,28 @@ sub log {
 	$mon->text( $mon->get() . "--- ".localtime."\n  $msg\n");
 }
 
+my $mbxlen = 11; # show this many characters of the mailbox name
+
+# Shorten a mailbox name
+sub shorten {
+	my $name = shift;
+	$name =~ s|([[:alnum:]])[^/]+/|$1/|g;
+	return substr($name, 0, $mbxlen);
+}
+
 # set mailbox window contents
 sub mbx {
-	$mbx->values(\@_);
+	my @status = ();
+
+	while (scalar(@_)) {
+		my $mb = shift;
+		my ($n, $o, $t) = (shift, shift, shift);
+
+		my $str = sprintf "%${mbxlen}s %4d/%4d/%5d", shorten($mb), $n,$o,$t;
+		$str = "<reverse>". $str ."</reverse>" if $n; # got new mails?
+		push @status, $str;
+	}
+	$mbx->values(\@status);
 }
 
 # timer that restarts itself
