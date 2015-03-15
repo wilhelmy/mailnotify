@@ -10,11 +10,13 @@ my ($ui, $mon, $mbx);
 
 # append text to the monitor window
 sub log {
-	my $msg = pop @_;
-	my %args = @_;
-	$mon->text( $mon->get() . "\n---".localtime."\n $msg");
-	#$vt->print($mon, "--- ".localtime);
-	#$vt->print("  $msg\n");
+	my $msg = shift;
+	$mon->text( $mon->get() . "--- ".localtime."\n  $msg\n");
+}
+
+# set mailbox window contents
+sub mbx {
+	$mbx->values(\@_);
 }
 
 # timer that restarts itself
@@ -50,28 +52,33 @@ $ui = Curses::UI->new(
 
 my $win = $ui->add(
 	'mainwin', 'Window',
-	#-border => 1,
-	#-y => 1,
-	#-bfg => 'red'
 );
 
+my $mbxwidth = 30;
+
 $mbx = $win->add(
-	'mailbox', 'TextViewer',
+	'mailbox', 'Listbox',
 	-border => 1,
-	-bfg => 'green',
+	-bfg => 'blue',
 	-x => 0,
 	-y => 0,
-	-height => 5,
+	-width => $mbxwidth,
+	-title => 'Messages',
+	-htmltext => 1,
+	-onfocus => sub { $mon->focus },
 );
 
 $mon = $win->add(
 	'monitor', 'TextViewer',
 	-border => 1,
 	-bfg => 'red',
-	-x => 0,
-	-y => 5,
+	-x => $mbxwidth,
+	-y => 0,
+	-title => 'Monitor'
 );
 
 $ui->set_binding(sub{exit}, 'q');
+
+$mon->focus;
 
 1
