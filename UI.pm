@@ -2,20 +2,24 @@
 # switch the UI to something else in the future, in case I'm not satisfied.
 package UI;
 
+use v5.10.1;
 use strict;
 use warnings;
 use Curses::UI;
 
-my ($ui, $mon, $mbx);
+my ($ui, $mon, $mbx, $sub);
 
 # append text to the monitor window
 sub log {
-	my $msg = shift;
-	$mon->text( $mon->get() . "--- ".localtime."\n  $msg\n");
+	my $log = $mon->get() . "--- ".localtime."\n  ".shift."\n";
+	$mon->text($log);
+
+	# HACK: poking around in the internals to ensure it's scrolled down to
+	# the end of the buffer…
+	$mon->cursor_down(undef, @{$mon->{-scr_lines}} - $mon->canvasheight);
 }
 
 my $mbxlen = 11; # show this many characters of the mailbox name
-
 # Shorten a mailbox name
 sub shorten {
 	my $name = shift;
@@ -23,19 +27,39 @@ sub shorten {
 	return substr($name, 0, $mbxlen);
 }
 
+my $start_hl = "<bold><underline>";
+my $end_hl = "</underline></bold>";
+sub hilight {
+	my $x = shift;
+	return $x ? ($start_hl, $x, $end_hl) : ('', $x, '');
+}
+
 # set mailbox window contents
 sub mbx {
-	my @status = ();
+	my ($mailboxes, $status) = @_;
+	my @values;
 
-	while (scalar(@_)) {
-		my $mb = shift;
-		my ($n, $o, $t) = (shift, shift, shift);
+	foreach (@$mailboxes) {
+		my ($n,$o,$t) = @{$status->{$_}};
+		my $str = sprintf "%${mbxlen}s %s%4d%s/%s%4d%s/%5d",
+			shorten($_),
+			hilight($n),
+			hilight($o),
+			$t;
 
-		my $str = sprintf "%${mbxlen}s %4d/%4d/%5d", shorten($mb), $n,$o,$t;
-		$str = "<reverse>". $str ."</reverse>" if $n; # got new mails?
-		push @status, $str;
+		push @values, $str;
 	}
-	$mbx->values(\@status);
+	$mbx->values(\@values);
+}
+
+sub subscriptions {
+	my ($status, $subscribed) = @_;
+	my $backup = $sub->{-onchange}; # HACK: poking around in the internals…
+	$sub->onChange(undef);
+	$sub->values($status);
+	$sub->clear_selection;
+	$sub->set_selection(@$subscribed);
+	$sub->onChange($backup);
 }
 
 # timer that restarts itself
@@ -57,8 +81,7 @@ sub mainloop {
 
 # alert the user
 sub beep {
-	print "\a";
-	STDOUT->flush;
+	$ui->dobeep;
 }
 
 ## Window setup
@@ -82,9 +105,23 @@ $mbx = $win->add(
 	-x => 0,
 	-y => 0,
 	-width => $mbxwidth,
-	-title => 'Messages',
+	-title => 'Folders',
 	-htmltext => 1,
-	-onfocus => sub { $mon->focus },
+);
+
+$sub = $win->add(
+	'subscriptions', 'Listbox',
+	-border => 1,
+	-x => 0,
+	-y => 0,
+	-width => $mbxwidth,
+	-title => 'Subscriptions',
+	-htmltext => 1,
+	-multi => 1,
+	-onchange => sub {
+		UI::log "changed";
+		shift->option_next;
+	}
 );
 
 $mon = $win->add(
@@ -97,7 +134,9 @@ $mon = $win->add(
 );
 
 $ui->set_binding(sub{exit}, 'q');
+$ui->set_binding(sub{exit}, "\cC");
 
 $mon->focus;
+$mbx->focus;
 
 1
